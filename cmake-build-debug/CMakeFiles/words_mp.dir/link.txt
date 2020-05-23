@@ -1,0 +1,1 @@
+/usr/bin/c++  -g   CMakeFiles/words_mp.dir/main.cpp.o  -o words_mp  /usr/lib/x86_64-linux-gnu/libboost_system.so /usr/lib/x86_64-linux-gnu/libboost_filesystem.so /usr/lib/x86_64-linux-gnu/libboost_locale.so -larchive -lpthread /usr/lib/x86_64-linux-gnu/libboost_system.so 
