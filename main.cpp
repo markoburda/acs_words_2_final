@@ -57,7 +57,7 @@ private:
     mutable std::mutex mtx;
     std::condition_variable cv_m;
     std::condition_variable cv_full_m;
-    size_t max_size_m = 10000;
+    size_t max_size_m = 3000;
     std::atomic<size_t> producers_m{};
 public:
     thsafe_q() = default;
@@ -75,6 +75,7 @@ public:
         cv_m.wait(ul, [this]() { return !que_m.empty(); });
         element el = que_m.front();
         que_m.pop_front();
+        cv_full_m.notify_one();
         return el;
     }
 
@@ -87,6 +88,7 @@ public:
         que_m.pop_front();
         el2 = que_m.front();
         que_m.pop_front();
+        cv_full_m.notify_one();
         return std::make_pair(el1, el2);
     }
 
