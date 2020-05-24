@@ -1,3 +1,3 @@
-/home/effortless/CLionProjects/acs tbb/burda_acs_words_2/acs_words_2/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/home/effortless/CLionProjects/acs tbb/burda_acs_words_2/acs_words_2/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/effortless/CLionProjects/acs tbb/burda_acs_words_2/acs_words_2/cmake-build-debug/CMakeFiles/words_mp.dir
+/home/efortls/Documents/acs words 2 final/acs_words_2_final/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/efortls/Documents/acs words 2 final/acs_words_2_final/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/efortls/Documents/acs words 2 final/acs_words_2_final/cmake-build-debug/CMakeFiles/words_mp.dir

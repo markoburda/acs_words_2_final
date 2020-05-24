@@ -1,4 +1,4 @@
-# Install script for directory: /home/effortless/CLionProjects/acs tbb/burda_acs_words_2/acs_words_2
+# Install script for directory: /home/efortls/Documents/acs words 2 final/acs_words_2_final
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -45,5 +45,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/effortless/CLionProjects/acs tbb/burda_acs_words_2/acs_words_2/cmake-build-debug/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/efortls/Documents/acs words 2 final/acs_words_2_final/cmake-build-debug/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

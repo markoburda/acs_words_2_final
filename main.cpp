@@ -56,8 +56,8 @@ private:
     mutable std::mutex mtx;
     std::condition_variable cv_m;
     std::condition_variable cv_full_m;
-    size_t max_size_m = 5000;
-    std::atomic<size_t> consumers_m{};
+    size_t max_size_m = 10000;
+    std::atomic<size_t> producers_m{};
 public:
     thsafe_q() = default;
 
@@ -94,10 +94,23 @@ public:
         std::lock_guard<std::mutex> lg{mtx};
         return que_m.size();
     }
+
+    void add_producers() {
+        producers_m++;
+    }
+
+    void remove_producers() {
+        producers_m--;
+    }
+
+    size_t producers(){
+        return producers_m;
+    }
 };
 
 void merge(thsafe_q<um_t>& que_m, thsafe_q<std::string>& raws_que_m) {
     while (true) {
+//        std::cout << "Merge start, dict size: " << que_m.get_size() << std::endl;
         um_t map1, map2;
         std::pair<um_t, um_t> map_pair = que_m.pop_two();
         map1 = map_pair.first;
@@ -105,16 +118,20 @@ void merge(thsafe_q<um_t>& que_m, thsafe_q<std::string>& raws_que_m) {
         if (map1.empty() || map2.empty()) {
             auto que_size = que_m.get_size();
             if (map1.empty()) {
+//                std::cout << "if 1" << std::endl;
                 que_m.push(map2);
                 que_m.push(map1);
             } else if (map2.empty()) {
+//                std::cout << "if 2" << std::endl;
                 que_m.push(map1);
                 que_m.push(map2);
             }
             if (que_size < 1) {
+                std::cout << "if end" << std::endl;
                 break;
             }
         } else {
+//            std::cout << "else" << std::endl;
             for (auto &el : map2) {
                 if (map1.find(el.first) != map1.end()) {
                     map1[el.first] += el.second;
@@ -133,6 +150,7 @@ void filenames_enqueue(const bfs::path& p, thsafe_q<bfs::path>& filenames_que_m)
             if (is_regular_file(p)) {
                 if (file_size(p) < 1000000) {
                     filenames_que_m.push(p);
+//                    std::cout << "Que size: " << filenames_que_m.get_size() << std::endl;
                 }
             } else if (is_directory(p)) {
                 for (bfs::directory_entry &x : bfs::directory_iterator(p)) {
@@ -151,21 +169,33 @@ void filenames_enqueue(const bfs::path& p, thsafe_q<bfs::path>& filenames_que_m)
 }
 
 void read_filenames(thsafe_q<bfs::path>& filenames_que_m, thsafe_q<std::string>& raws_que_m){
-    while(filenames_que_m.get_size() > 0) {
+//    std::cout << "Read filenames start" << std::endl;
+    while(true) {
+//        std::cout << "Raws queue size: " << raws_que_m.get_size() << std::endl;
         auto p = filenames_que_m.pop();
+        if(p.empty()){
+//            std::cout << "Mahina zdohla" << std::endl;
+//            raws_que_m.push("");
+            break;
+        }
         std::ifstream raw_file(p.string(), std::ios::binary);
         auto buffer = static_cast<std::ostringstream &>(std::ostringstream{} << raw_file.rdbuf()).str();
         raws_que_m.push(std::move(buffer));
+        std::cout << "Pushing binary, size: " << raws_que_m.get_size() << std::endl;
     }
-    raws_que_m.push("");
+//    raws_que_m.push("");
 }
 
 void parse_raw(thsafe_q<std::string>& raws_que_m, thsafe_q<um_t>& dict_que_m){
-    while(raws_que_m.get_size() > 0) {
+    raws_que_m.add_producers();
+//    std::cout << "Producers: " << raws_que_m.producers() << std::endl;
+    while(true) {
+//        std::cout << "Producers: " << raws_que_m.producers() << std::endl;
         std::vector<p_t> vec_of_pairs;
         v_t words;
         auto buffer = raws_que_m.pop();
         if(buffer.empty()){
+//            std::cout << "push empty" << std::endl;
             raws_que_m.push("");
             break;
         }
@@ -212,14 +242,29 @@ void parse_raw(thsafe_q<std::string>& raws_que_m, thsafe_q<um_t>& dict_que_m){
         }
 
         dict_que_m.push(std::move(mapped_words));
+//        std::cout << "Pushing dict, que size: " << dict_que_m.get_size() << std::endl;
+    }
+    raws_que_m.remove_producers();
+    if(raws_que_m.producers() == 0){
+        std::cout << "FINALLY" << std::endl;
+        dict_que_m.push(um_t {});
     }
 }
 
-void mt_parse_raws(thsafe_q<std::string>& raws_que_m, thsafe_q<um_t>& dict_que_m, const int parse_threads, const int merge_threads ){
+void mt_parse_raws(thsafe_q<bfs::path>& filenames_que_m, const bfs::path& path, thsafe_q<std::string>& raws_que_m, thsafe_q<um_t>& dict_que_m, const int parse_threads, const int merge_threads ){
+//    read_filenames(std::ref(filenames_que_m), std::ref(raws_que_m));
+//    filenames_enqueue("./data/" + infile, std::ref(filenames_que_m));
     std::vector<std::thread> th_vec;
-    th_vec.reserve(parse_threads + merge_threads);
-
+    th_vec.reserve(parse_threads + merge_threads + 2);
     std::cout << "parse" << std::endl;
+
+    th_vec.emplace_back(filenames_enqueue, path, std::ref(filenames_que_m));
+    th_vec.emplace_back(read_filenames, std::ref(filenames_que_m), std::ref(raws_que_m));
+
+    th_vec[0].join();
+    filenames_que_m.push("");
+    th_vec[1].join();
+    raws_que_m.push("");
     for (int i = 0; i < parse_threads; i++) {
         th_vec.emplace_back(parse_raw, std::ref(raws_que_m), std::ref(dict_que_m));
     }
@@ -227,16 +272,19 @@ void mt_parse_raws(thsafe_q<std::string>& raws_que_m, thsafe_q<um_t>& dict_que_m
         th_vec.emplace_back(merge, std::ref(dict_que_m), std::ref(raws_que_m));
     }
 
-    std::cout << "Merge" << std::endl;
-    for(int i = 0; i < parse_threads; i++) {
+//    std::cout << "Waiting for parsing threads..." << std::endl;
+//    std::cout << "Files: " << raws_que_m.get_size() << std::endl;
+//    std::cout << "Parse joined" << std::endl;
+
+//    dict_que_m.push(um_t {});
+    std::cout << "Filenames queue size: " << filenames_que_m.get_size() << std::endl;
+    std::cout << "Raw files queue size: " << raws_que_m.get_size() << std::endl;
+
+    std::cout << "Joining all threads..." << std::endl;
+    for(int i = 2; i < parse_threads + merge_threads + 2; i++) {
         th_vec[i].join();
     }
-
-    dict_que_m.push(um_t {});
-
-    for(int i = parse_threads; i < parse_threads + merge_threads; i++) {
-        th_vec[i].join();
-    }
+    std::cout << "Threads joined" << std::endl;
 
     th_vec.clear();
 
@@ -281,23 +329,20 @@ int main(int argc, char* argv[]){
     auto total_begin = get_current_time_fenced();
 
     auto filenames_begin = get_current_time_fenced();
+    std::cout << "Filenames enqueue..." << std::endl;
     //FILENAMES_ENQUEUE
+    //    filenames_enqueue("./data/" + infile, std::ref(filenames_que_m));
     auto filenames_time = get_current_time_fenced() - filenames_begin;
 
-//    std::cout << "Finding paths: " << to_us(filenames_time) << std::endl;
-//    std::cout << "Number of files: " << filenames_que_m.get_size() << std::endl;
-
     auto raws_begin = get_current_time_fenced();
-    //FILENAMES_ENQUEUE
-    filenames_enqueue("./data/" + infile, std::ref(filenames_que_m));
+
+
+    std::cout << "Reading filenames..." << std::endl;
     auto raws_time = get_current_time_fenced() - raws_begin;
-
-//    std::cout << "Reading: " << to_us(raws_time) << std::endl;
-    read_filenames(std::ref(filenames_que_m), std::ref(raws_que_m));
-//    std::cout << "Number of files: " << raws_que_m.get_size() << std::endl;
-
+    //READ_FILENAMES
     auto parse_begin = get_current_time_fenced();
-    mt_parse_raws(std::ref(raws_que_m), std::ref(dict_que_m), parse_threads, merge_threads);
+    std::cout << "Parsing raws..." << std::endl;
+    mt_parse_raws(std::ref(filenames_que_m), "./data/" + infile, std::ref(raws_que_m), std::ref(dict_que_m), parse_threads, merge_threads);
     auto parse_time = get_current_time_fenced() - parse_begin;
 
     auto total_time = get_current_time_fenced() - total_begin;
@@ -315,10 +360,10 @@ int main(int argc, char* argv[]){
 //        throw std::runtime_error("Too many maps in queue");
 //    }
 
-    for(int i = 0; i < dict_que_m.get_size(); i++){
-        um_t map_item = dict_que_m.pop();
-        std::cout << map_item.size() << std::endl;
-    }
+//    for(int i = 0; i < dict_que_m.get_size(); i++){
+//        um_t map_item = dict_que_m.pop();
+//        std::cout << map_item.size() << std::endl;
+//    }
 
     for (auto &kv: dict_que_m.pop()) {
         vec_of_pairs.emplace_back(std::move(kv));

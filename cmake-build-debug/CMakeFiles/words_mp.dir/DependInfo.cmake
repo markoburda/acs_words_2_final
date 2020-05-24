@@ -4,7 +4,7 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/effortless/CLionProjects/acs tbb/burda_acs_words_2/acs_words_2/main.cpp" "/home/effortless/CLionProjects/acs tbb/burda_acs_words_2/acs_words_2/cmake-build-debug/CMakeFiles/words_mp.dir/main.cpp.o"
+  "/home/efortls/Documents/acs words 2 final/acs_words_2_final/main.cpp" "/home/efortls/Documents/acs words 2 final/acs_words_2_final/cmake-build-debug/CMakeFiles/words_mp.dir/main.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
 
