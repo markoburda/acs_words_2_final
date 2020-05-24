@@ -174,8 +174,7 @@ void read_filenames(thsafe_q<bfs::path>& filenames_que_m, thsafe_q<std::string>&
 //        std::cout << "Raws queue size: " << raws_que_m.get_size() << std::endl;
         auto p = filenames_que_m.pop();
         if(p.empty()){
-//            std::cout << "Mahina zdohla" << std::endl;
-//            raws_que_m.push("");
+            raws_que_m.push("");
             break;
         }
         std::ifstream raw_file(p.string(), std::ios::binary);
@@ -183,7 +182,6 @@ void read_filenames(thsafe_q<bfs::path>& filenames_que_m, thsafe_q<std::string>&
         raws_que_m.push(std::move(buffer));
         std::cout << "Pushing binary, size: " << raws_que_m.get_size() << std::endl;
     }
-//    raws_que_m.push("");
 }
 
 void parse_raw(thsafe_q<std::string>& raws_que_m, thsafe_q<um_t>& dict_que_m){
@@ -263,8 +261,7 @@ void mt_parse_raws(thsafe_q<bfs::path>& filenames_que_m, const bfs::path& path, 
 
     th_vec[0].join();
     filenames_que_m.push("");
-    th_vec[1].join();
-    raws_que_m.push("");
+//    raws_que_m.push("");
     for (int i = 0; i < parse_threads; i++) {
         th_vec.emplace_back(parse_raw, std::ref(raws_que_m), std::ref(dict_que_m));
     }
@@ -281,6 +278,7 @@ void mt_parse_raws(thsafe_q<bfs::path>& filenames_que_m, const bfs::path& path, 
     std::cout << "Raw files queue size: " << raws_que_m.get_size() << std::endl;
 
     std::cout << "Joining all threads..." << std::endl;
+    th_vec[1].join();
     for(int i = 2; i < parse_threads + merge_threads + 2; i++) {
         th_vec[i].join();
     }

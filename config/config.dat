@@ -1,4 +1,4 @@
-infile="guttenberg/9"
+infile="guttenberg/5"
 out_by_a="res_a.txt"
 out_by_n="res_n.txt"
 parse_threads=4
