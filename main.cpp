@@ -57,7 +57,7 @@ private:
     mutable std::mutex mtx;
     std::condition_variable cv_m;
     std::condition_variable cv_full_m;
-    size_t max_size_m = 3000;
+    size_t max_size_m = 2000;
     std::atomic<size_t> producers_m{};
 public:
     thsafe_q() = default;
