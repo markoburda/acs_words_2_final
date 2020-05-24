@@ -12,6 +12,7 @@
 #include <future>
 #include <cmath>
 #include <deque>
+#include "tbb/tbb.h"
 
 namespace bl = boost::locale;
 namespace bfs = boost::filesystem;
@@ -61,11 +62,10 @@ private:
 public:
     thsafe_q() = default;
 
-    void push(const element el) {
+    void push(const element& el) {
 //        std::lock_guard<std::mutex> lg{mtx};
         std::unique_lock<std::mutex> ul{mtx};
         cv_full_m.wait(ul, [this]() { return que_m.size() < max_size_m; });
-
         que_m.push_back(el);
         cv_m.notify_one();
     }
@@ -133,11 +133,7 @@ void merge(thsafe_q<um_t>& que_m, thsafe_q<std::string>& raws_que_m) {
         } else {
 //            std::cout << "else" << std::endl;
             for (auto &el : map2) {
-                if (map1.find(el.first) != map1.end()) {
-                    map1[el.first] += el.second;
-                } else {
-                    map1[el.first] = el.second;
-                }
+                map1[el.first] += el.second;
             }
             que_m.push(map1);
         }
@@ -217,11 +213,6 @@ void parse_raw(thsafe_q<std::string>& raws_que_m, thsafe_q<um_t>& dict_que_m){
             buffer = output;
         }
 
-        //Initialize locale
-        bl::localization_backend_manager::global().select("icu");
-        bl::generator gen;
-        std::locale::global(gen("en_US.UTF-8"));
-
         //No segmentation, convert whole buffer
         buffer = bl::normalize(buffer, bl::norm_default);
         buffer = bl::fold_case(buffer);
@@ -258,9 +249,6 @@ void mt_parse_raws(thsafe_q<bfs::path>& filenames_que_m, const bfs::path& path, 
 
     th_vec.emplace_back(filenames_enqueue, path, std::ref(filenames_que_m));
     th_vec.emplace_back(read_filenames, std::ref(filenames_que_m), std::ref(raws_que_m));
-
-    th_vec[0].join();
-    filenames_que_m.push("");
 //    raws_que_m.push("");
     for (int i = 0; i < parse_threads; i++) {
         th_vec.emplace_back(parse_raw, std::ref(raws_que_m), std::ref(dict_que_m));
@@ -269,17 +257,12 @@ void mt_parse_raws(thsafe_q<bfs::path>& filenames_que_m, const bfs::path& path, 
         th_vec.emplace_back(merge, std::ref(dict_que_m), std::ref(raws_que_m));
     }
 
-//    std::cout << "Waiting for parsing threads..." << std::endl;
-//    std::cout << "Files: " << raws_que_m.get_size() << std::endl;
-//    std::cout << "Parse joined" << std::endl;
-
-//    dict_que_m.push(um_t {});
-    std::cout << "Filenames queue size: " << filenames_que_m.get_size() << std::endl;
-    std::cout << "Raw files queue size: " << raws_que_m.get_size() << std::endl;
-
+    th_vec[0].join();
+    filenames_que_m.push("");
+//    std::cout << "Filenames queue size: " << filenames_que_m.get_size() << std::endl;
+//    std::cout << "Raw files queue size: " << raws_que_m.get_size() << std::endl;
     std::cout << "Joining all threads..." << std::endl;
-    th_vec[1].join();
-    for(int i = 2; i < parse_threads + merge_threads + 2; i++) {
+    for(int i = 1; i < parse_threads + merge_threads + 2; i++) {
         th_vec[i].join();
     }
     std::cout << "Threads joined" << std::endl;
@@ -291,6 +274,10 @@ void mt_parse_raws(thsafe_q<bfs::path>& filenames_que_m, const bfs::path& path, 
 
 int main(int argc, char* argv[]){
     namespace bl = boost::locale;
+    bl::localization_backend_manager::global().select("icu");
+    bl::generator gen;
+    std::locale::global(gen("en_US.UTF-8"));
+
     std::string config_path;
     if(argc == 1){
         config_path = "config.dat";
