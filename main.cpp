@@ -12,7 +12,6 @@
 #include <future>
 #include <cmath>
 #include <deque>
-#include "tbb/tbb.h"
 
 namespace bl = boost::locale;
 namespace bfs = boost::filesystem;
@@ -63,11 +62,11 @@ public:
     thsafe_q() = default;
 
     void push(const element& el) {
-//        std::lock_guard<std::mutex> lg{mtx};
         std::unique_lock<std::mutex> ul{mtx};
         cv_full_m.wait(ul, [this]() { return que_m.size() < max_size_m; });
         que_m.push_back(el);
-        cv_m.notify_one();
+        ul.unlock();
+        cv_m.notify_all();
     }
 
     element pop() {
@@ -75,6 +74,7 @@ public:
         cv_m.wait(ul, [this]() { return !que_m.empty(); });
         element el = que_m.front();
         que_m.pop_front();
+        ul.unlock();
         cv_full_m.notify_one();
         return el;
     }
@@ -82,12 +82,12 @@ public:
     std::pair<element, element> pop_two() {
         element el1, el2;
         std::unique_lock<std::mutex> ul{mtx};
-//        std::cout << "Waiting for 1 more element" << std::endl;
         cv_m.wait(ul, [this]() { return que_m.size() > 1; });
         el1 = que_m.front();
         que_m.pop_front();
         el2 = que_m.front();
         que_m.pop_front();
+        ul.unlock();
         cv_full_m.notify_one();
         return std::make_pair(el1, el2);
     }
@@ -112,8 +112,7 @@ public:
 
 void merge(thsafe_q<um_t>& que_m, thsafe_q<std::string>& raws_que_m) {
     while (true) {
-//        std::cout << "Merge start, dict size: " << que_m.get_size() << std::endl;
-        um_t map1, map2;
+	um_t map1, map2;
         std::pair<um_t, um_t> map_pair = que_m.pop_two();
         map1 = map_pair.first;
         map2 = map_pair.second;
@@ -129,7 +128,7 @@ void merge(thsafe_q<um_t>& que_m, thsafe_q<std::string>& raws_que_m) {
                 que_m.push(map2);
             }
             if (que_size < 1) {
-                std::cout << "if end" << std::endl;
+                std::cout << "Merge -1" << std::endl;
                 break;
             }
         } else {
@@ -148,7 +147,7 @@ void filenames_enqueue(const bfs::path& p, thsafe_q<bfs::path>& filenames_que_m)
             if (is_regular_file(p)) {
                 if (file_size(p) < 1000000) {
                     filenames_que_m.push(p);
-//                    std::cout << "Que size: " << filenames_que_m.get_size() << std::endl;
+	                    std::cout << filenames_que_m.get_size() << std::endl;
                 }
             } else if (is_directory(p)) {
                 for (bfs::directory_entry &x : bfs::directory_iterator(p)) {
@@ -162,7 +161,7 @@ void filenames_enqueue(const bfs::path& p, thsafe_q<bfs::path>& filenames_que_m)
     }
 
     catch (const bfs::filesystem_error &ex) {
-        std::cout << ex.what() << '\n';
+        std::cout << ex.what() << std::endl;
     }
 }
 
@@ -178,7 +177,7 @@ void read_filenames(thsafe_q<bfs::path>& filenames_que_m, thsafe_q<std::string>&
         std::ifstream raw_file(p.string(), std::ios::binary);
         auto buffer = static_cast<std::ostringstream &>(std::ostringstream{} << raw_file.rdbuf()).str();
         raws_que_m.push(std::move(buffer));
-        std::cout << "Pushing binary, size: " << raws_que_m.get_size() << std::endl;
+        //std::cout << "Pushing binary, size: " << raws_que_m.get_size() << std::endl;
     }
 }
 
