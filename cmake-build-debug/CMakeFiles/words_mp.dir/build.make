@@ -79,10 +79,13 @@ words_mp_EXTERNAL_OBJECTS =
 
 words_mp: CMakeFiles/words_mp.dir/main.cpp.o
 words_mp: CMakeFiles/words_mp.dir/build.make
-words_mp: /usr/lib/x86_64-linux-gnu/libboost_system.so
-words_mp: /usr/lib/x86_64-linux-gnu/libboost_filesystem.so
-words_mp: /usr/lib/x86_64-linux-gnu/libboost_locale.so
-words_mp: /usr/lib/x86_64-linux-gnu/libboost_system.so
+words_mp: /usr/lib/x86_64-linux-gnu/libboost_system.so.1.71.0
+words_mp: /usr/lib/x86_64-linux-gnu/libboost_filesystem.so.1.71.0
+words_mp: /usr/lib/x86_64-linux-gnu/libboost_locale.so.1.71.0
+words_mp: /usr/lib/x86_64-linux-gnu/libboost_system.so.1.71.0
+words_mp: /usr/lib/x86_64-linux-gnu/libboost_chrono.so.1.71.0
+words_mp: /usr/lib/x86_64-linux-gnu/libboost_thread.so.1.71.0
+words_mp: /usr/lib/x86_64-linux-gnu/libboost_atomic.so.1.71.0
 words_mp: CMakeFiles/words_mp.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir="/home/efortls/Documents/acs words 2 final/acs_words_2_final/cmake-build-debug/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable words_mp"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/words_mp.dir/link.txt --verbose=$(VERBOSE)

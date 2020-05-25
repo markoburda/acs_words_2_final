@@ -56,7 +56,7 @@ private:
     mutable std::mutex mtx;
     std::condition_variable cv_m;
     std::condition_variable cv_full_m;
-    size_t max_size_m = 2000;
+    size_t max_size_m = 8000;
     std::atomic<size_t> producers_m{};
 public:
     thsafe_q() = default;
@@ -75,7 +75,7 @@ public:
         element el = que_m.front();
         que_m.pop_front();
         ul.unlock();
-        cv_full_m.notify_one();
+        cv_full_m.notify_all();
         return el;
     }
 
@@ -88,7 +88,7 @@ public:
         el2 = que_m.front();
         que_m.pop_front();
         ul.unlock();
-        cv_full_m.notify_one();
+        cv_full_m.notify_all();
         return std::make_pair(el1, el2);
     }
 
@@ -132,7 +132,6 @@ void merge(thsafe_q<um_t>& que_m, thsafe_q<std::string>& raws_que_m) {
                 break;
             }
         } else {
-//            std::cout << "else" << std::endl;
             for (auto &el : map2) {
                 map1[el.first] += el.second;
             }
@@ -147,7 +146,6 @@ void filenames_enqueue(const bfs::path& p, thsafe_q<bfs::path>& filenames_que_m)
             if (is_regular_file(p)) {
                 if (file_size(p) < 1000000) {
                     filenames_que_m.push(p);
-	                    std::cout << filenames_que_m.get_size() << std::endl;
                 }
             } else if (is_directory(p)) {
                 for (bfs::directory_entry &x : bfs::directory_iterator(p)) {
@@ -176,8 +174,7 @@ void read_filenames(thsafe_q<bfs::path>& filenames_que_m, thsafe_q<std::string>&
         }
         std::ifstream raw_file(p.string(), std::ios::binary);
         auto buffer = static_cast<std::ostringstream &>(std::ostringstream{} << raw_file.rdbuf()).str();
-        raws_que_m.push(std::move(buffer));
-        //std::cout << "Pushing binary, size: " << raws_que_m.get_size() << std::endl;
+        raws_que_m.push(buffer);
     }
 }
 
@@ -190,7 +187,6 @@ void parse_raw(thsafe_q<std::string>& raws_que_m, thsafe_q<um_t>& dict_que_m){
         v_t words;
         auto buffer = raws_que_m.pop();
         if(buffer.empty()){
-//            std::cout << "push empty" << std::endl;
             raws_que_m.push("");
             break;
         }
@@ -213,6 +209,7 @@ void parse_raw(thsafe_q<std::string>& raws_que_m, thsafe_q<um_t>& dict_que_m){
             r = archive_read_data(a, &output[0], output.size());
             buffer = output;
         }
+        archive_read_free(a);
 
         //No segmentation, convert whole buffer
         buffer = bl::normalize(buffer, bl::norm_default);
@@ -231,12 +228,12 @@ void parse_raw(thsafe_q<std::string>& raws_que_m, thsafe_q<um_t>& dict_que_m){
             mapped_words[word]++;
         }
 
-        dict_que_m.push(std::move(mapped_words));
+        dict_que_m.push(mapped_words);
 //        std::cout << "Pushing dict, que size: " << dict_que_m.get_size() << std::endl;
     }
     raws_que_m.remove_producers();
     if(raws_que_m.producers() == 0){
-        std::cout << "FINALLY" << std::endl;
+        std::cout << "File parse end" << std::endl;
         dict_que_m.push(um_t {});
     }
 }
@@ -250,7 +247,7 @@ void mt_parse_raws(thsafe_q<bfs::path>& filenames_que_m, const bfs::path& path, 
 
     th_vec.emplace_back(filenames_enqueue, path, std::ref(filenames_que_m));
     th_vec.emplace_back(read_filenames, std::ref(filenames_que_m), std::ref(raws_que_m));
-//    raws_que_m.push("");
+
     for (int i = 0; i < parse_threads; i++) {
         th_vec.emplace_back(parse_raw, std::ref(raws_que_m), std::ref(dict_que_m));
     }

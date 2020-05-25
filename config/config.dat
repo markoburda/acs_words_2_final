@@ -1,5 +1,5 @@
-infile="guttenberg/5"
+infile="guttenberg/1"
 out_by_a="res_a.txt"
 out_by_n="res_n.txt"
-parse_threads=6
-merge_threads=2
+parse_threads=12
+merge_threads=4
